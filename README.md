@@ -1,7 +1,7 @@
-#Descripción
+# Descripción
 El reto consiste en desarrollar un sistema multiagente para resolver una tarea cooperativa en un entorno 20x20 dinámicamente cambiante. El entorno del sistema multiagente es un mundo similar a una cuadrícula donde los agentes pueden moverse de su posición a una celda vecina si ya no hay ningún agente en esa ranura. En este entorno, la comida puede aparecer en cualquier celda menos en una. La celda especial, en la que no puede aparecer comida, se considera un depósito donde los agentes pueden traer y almacenar su comida. Un agente puede sólo puede saber si hay comida en una celda, si está visitándola. Inicialmente, la comida se coloca en algunas celdas aleatorias. Durante la ejecución, puede aparecer comida adicional dinámicamente en celdas seleccionadas al azar, excepto en la celda del depósito. Los agentes pueden tener/desempeñar diferentes roles (como explorador o recolector), comunicarse y cooperar para encontrar y recolectar alimentos de manera eficiente y efectiva.
 
-##Puntos a considerar
+## Puntos a considerar
 •	Inicialmente no hay comida en el entorno.
 •	La semilla para generación de números aleatorios será 12345.
 •	El depósito será generado al azar.
@@ -16,8 +16,8 @@ El reto consiste en desarrollar un sistema multiagente para resolver una tarea c
 •	Inicialmente, los agentes no son informados sobre la posición del depósito, pero una vez que lo encuentran, todos saben dónde está.
 Criterios de evaluación
 
-##Los criterios que se utilizarán para evaluar sus soluciones y seleccionar a los tres primeros ganadores son los siguientes:
+## Los criterios que se utilizarán para evaluar sus soluciones y seleccionar a los tres primeros ganadores son los siguientes:
 •	Aplicación original, innovadora y efectiva de algoritmos computacionales para resolver problemas específicos.
 •	El rendimiento de la implementación. El rendimiento de la implementación ejecutable se medirá en función de la cantidad de alimentos que recolecte el sistema multiagente en una cantidad de pasos de simulación.
 •	La calidad de la descripción de análisis, diseño e implementación del sistema multiagente, la elegancia de su diseño e implementación.
-![image](https://github.com/Gamaliel-Marines/Proyecto-MultiAgentes/assets/110830802/3a110c39-1c9a-445e-bcce-52cf873d2dc3)
+
