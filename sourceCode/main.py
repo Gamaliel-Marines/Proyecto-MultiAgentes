@@ -225,6 +225,10 @@ class RobotAgent(Agent):
 
         self.deposit_pos = self.model.known_deposit_pos
         self.food_positions = self.model.known_food_positions
+        #obtener la posicion del agente
+        x,y = self.pos
+        # verufucar la pos del agente
+        print(f"Agent {self.unique_id} is at {x},{y}")
 
         # print(f"{self.unique_id} {self.carrying_food}")
 
@@ -276,6 +280,9 @@ class FoodCollector(Model):
         self.known_food_positions = []
         self.known_deposit_pos = None
         self.num_collectors = 0
+        #agregar datos para la coneccion con unity
+        self.num_agents = num_agents
+        self.agent_positions = []
 
         self.crear_agentes()
 
@@ -296,6 +303,19 @@ class FoodCollector(Model):
             self.grid.place_agent(robot, pos)
             agent_id += 1
             # print(f"Adding {agent_id} at step {self.steps}.")
+
+    #rfuncion para actualizar la posicion de los agentes
+    def actualizar_pos_agentes(self):
+        # Inicialización de la lista que contendrá las posiciones de los agentes
+        self.agent_positions = []
+
+        # Iteración a través de los agentes
+        for agent in self.schedule.agents:
+            # Verifica si el agente es una instancia de la clase RobotAgent
+            if isinstance(agent, RobotAgent):
+                # Agrega la posición del agente a la lista
+                self.agent_positions.append(agent.pos)
+
 
     def add_food(self):
         if self.food_counter < 47:
@@ -363,3 +383,45 @@ data = model.datacollector.get_model_vars_dataframe()
 
 all_grid = model.datacollector.get_model_vars_dataframe()
 print(all_grid)
+
+# Importación de las bibliotecas necesarias
+from flask import Flask, jsonify
+import json
+
+# Creación de una instancia de la aplicación Flask
+app = Flask(__name__)
+
+# Creación de una instancia del modelo FoodCollector con parámetros WIDTH, HEIGHT y NUM_AGENTS
+model = FoodCollector(WIDTH, HEIGHT, NUM_AGENTS)
+current_step = 0  # Variable global para seguir el progreso de los pasos en la simulación
+
+# Definición de la ruta principal ("/") para la solicitud GET
+@app.route("/", methods=["GET"])
+def get_step_data():
+    global current_step  # Se utiliza la variable global current_step
+
+    # Verifica si hay más pasos disponibles dentro del límite MAX_STEPS
+    if current_step < MAX_STEPS:
+        # Ejecuta un paso en el modelo
+        model.step()
+
+        # Construcción de un diccionario con los datos relevantes del modelo
+        data = {
+            "agents": model.agent_positions,
+            "food": model.known_food_positions,
+            "deposit_cell": model.known_deposit_pos,
+        }
+
+        # Incrementa el contador de pasos
+        current_step += 1
+
+        # Devuelve los datos en formato JSON
+        return jsonify(data)
+    else:
+        # Devuelve un mensaje si no hay más pasos disponibles o la simulación ha sido completada
+        return jsonify({"message": "No more steps available or simulation completed"})
+
+# Verifica si este script es el punto de entrada principal
+if __name__ == "__main__":
+    # Inicia la aplicación Flask en modo de depuración
+    app.run(debug=True)
