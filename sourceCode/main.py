@@ -316,7 +316,6 @@ class FoodCollector(Model):
                 # Agrega la posición del agente a la lista
                 self.agent_positions.append(agent.pos)
 
-
     def add_food(self):
         if self.food_counter < 47:
             num_new_food = random.randint(2, 5)
@@ -396,7 +395,7 @@ model = FoodCollector(WIDTH, HEIGHT, NUM_AGENTS)
 current_step = 0  # Variable global para seguir el progreso de los pasos en la simulación
 
 # Definición de la ruta principal ("/") para la solicitud GET
-@app.route("/", methods=["GET"])
+@app.route("/step", methods=["GET"])
 def get_step_data():
     global current_step  # Se utiliza la variable global current_step
 
@@ -420,6 +419,24 @@ def get_step_data():
     else:
         # Devuelve un mensaje si no hay más pasos disponibles o la simulación ha sido completada
         return jsonify({"message": "No more steps available or simulation completed"})
+
+# Nueva ruta para imprimir solo los agentes
+@app.route("/agents", methods=["GET"])
+def get_agents():
+    model.crear_agentes()
+    return jsonify({"agents": model.agent_positions})
+
+
+# Nueva ruta para imprimir solo la comida
+@app.route("/food", methods=["GET"])
+def get_food():
+    model.add_food()
+    return jsonify({"foods": model.known_food_positions})
+
+#Nuevo ruta para imprimir solo el deposito
+@app.route("/deposit", methods=["GET"])
+def get_doposit():
+    return jsonify({"deposit": model.known_deposit_pos})
 
 # Verifica si este script es el punto de entrada principal
 if __name__ == "__main__":
