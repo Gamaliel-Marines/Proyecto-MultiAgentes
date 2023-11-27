@@ -25,7 +25,7 @@ import json
 
 import pandas as pd
 import math
-
+import argparse
 
 #=============================================
 # Deposit Agent
@@ -278,6 +278,7 @@ class FoodCollector(Model):
         self.known_food_positions = []
         self.known_deposit_pos = None
         self.num_collectors = 0
+        #agregar datos para la coneccion con unity
         self.agent_positions = []
         self.food_positions = []
 
@@ -303,8 +304,14 @@ class FoodCollector(Model):
 
     def update_positions(self):
         # Actualiza la posición de los agentes
-        self.agent_positions = [
-            (agent.pos, agent.unique_id) for agent in self.schedule.agents
+        self.agent_positions = [{
+            "position": agent.pos,
+            "unique_id": agent.unique_id,
+            "type": agent.type,
+            "role": agent.role,
+            "carrying_food": agent.carrying_food,
+        }
+            for agent in self.schedule.agents if agent.type == 3
         ]
 
         self.food_positions = [
@@ -357,13 +364,12 @@ class FoodCollector(Model):
             print(f"Food positions: {self.food_positions}")
             print(f"Deposit position: {self.known_deposit_pos}")
             print(f"Number of collectors: {self.num_collectors}")
-            
+            print(f"Agent positions: {self.agent_positions}")
                     
         self.schedule.step()
         self.datacollector.collect(self) 
         self.update_positions()
         self.steps += 1
-        print(f"Agent positions: {self.agent_positions}")
 
 
 WIDTH = 20
@@ -378,7 +384,7 @@ for i in range(MAX_STEPS + 1):
     model.step()
     if model.all_food_placed():
         print(f'Pasos totales para alcanzar el objetivo: {model.steps}')
-    break
+        break
 
 
 data = model.datacollector.get_model_vars_dataframe()
@@ -387,7 +393,71 @@ all_grid = model.datacollector.get_model_vars_dataframe()
 print(all_grid)
 
 
+# Importación de las bibliotecas necesarias
+from flask import Flask, jsonify
+import json
+
+
+# Create a single instance of the Flask app
+app = Flask(__name__)
+
+model = FoodCollector(WIDTH, HEIGHT, NUM_AGENTS)
 current_step = 0
+
+
+# Definición de la ruta principal ("/") para la solicitud GET
+@app.route("/step", methods=["GET"])
+def get_step_data():
+    global current_step  # Se utiliza la variable global current_step
+
+    # Verifica si hay más pasos disponibles dentro del límite MAX_STEPS
+    if current_step < MAX_STEPS and not model.all_food_placed():
+        # Ejecuta un paso en el modelo
+        model.step()
+
+        # Construcción de un diccionario con los datos relevantes del modelo
+        data = {
+            "agents": model.agent_positions,
+            "food": model.known_food_positions,
+            "deposit_cell": model.known_deposit_pos,
+        }
+
+        # Incrementa el contador de pasos
+        current_step += 1
+
+        # Devuelve los datos en formato JSON con un código de estado 200 (OK)
+        return jsonify(data), 200
+    else:
+        # Devuelve un mensaje con un código de estado 400 (Bad Request)
+        return jsonify({"message": "No more steps available or simulation completed"}), 400
+
+# Nueva ruta para imprimir solo los agentes
+@app.route("/agents", methods=["GET"])
+def get_agents():
+    
+    return jsonify({"agents": model.agent_positions}), 200
+
+# Nueva ruta para imprimir solo la comida
+@app.route("/food", methods=["GET"])
+def get_food():
+    return jsonify({"foods": model.known_food_positions}), 200
+
+# Nuevo ruta para imprimir solo el deposito
+@app.route("/deposit", methods=["GET"])
+def get_doposit():
+    return jsonify({"deposit": model.known_deposit_pos}), 200
+
+
+# Inicia la aplicación Flask en modo de depuración
+if __name__ == "__main__":
+    app.run(debug=True)
+
+
+
+
+
+
+"""
 
 
 # ======================================================
@@ -423,15 +493,20 @@ class Server(BaseHTTPRequestHandler):
     # Return: None
     # ==============================================================
     def do_POST(self):
-        if not model.all_food_placed():
+        global current_steps
+
+        if current_steps < MAX_STEPS:
             model.step()
             grid = json.dumps(get_grid(model))
             print(grid)
             self._set_response()
             self.wfile.write(str(grid).encode('utf-8'))
+            current_steps += 1
         else:
             self._set_response()
             self.wfile.write("Simulation finished!".encode('utf-8'))
+
+
 
 # ======================================================
 # Function: run
@@ -456,13 +531,16 @@ def run(server_class=HTTPServer, handler_class=Server, port=8585):
 # ======================================================
 # Main
 # ======================================================
-map = open('/mapaFINAL.txt').read()
-map = [item.split() for item in map.split('\n')]
-data = map.pop(0)
-width, height = int(data[0]), int(data[1])
 
-num_robots = 5
+data = {
+    "agents": model.agent_positions,
+    "food": model.known_food_positions,
+    "deposit_cell": model.known_deposit_pos,
+}
+width = 20
+height = 20
 
-model = FoodCollector(width, height, map, num_robots)
+model = FoodCollector(WIDTH, HEIGHT, NUM_AGENTS)
 
 run()
+"""
