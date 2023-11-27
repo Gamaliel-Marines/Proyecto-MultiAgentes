@@ -25,10 +25,6 @@ import json
 
 import pandas as pd
 import math
-
-from http.server import BaseHTTPRequestHandler, HTTPServer
-import logging
-import json
 import argparse
 
 #=============================================
@@ -255,6 +251,8 @@ def get_grid(model):
         grid[x][y] = cell_value
     return grid
 
+
+
 # Food Collector Model Class
 # ======================================================
 class FoodCollector(Model):
@@ -280,9 +278,8 @@ class FoodCollector(Model):
         self.known_food_positions = []
         self.known_deposit_pos = None
         self.num_collectors = 0
-        #agregar datos para la coneccion con unity
-        self.num_agents = num_agents
         self.agent_positions = []
+        self.food_positions = []
 
         self.crear_agentes()
 
@@ -304,17 +301,16 @@ class FoodCollector(Model):
             agent_id += 1
             # print(f"Adding {agent_id} at step {self.steps}.")
 
-    #rfuncion para actualizar la posicion de los agentes
-    def actualizar_pos_agentes(self):
-        # Inicialización de la lista que contendrá las posiciones de los agentes
-        self.agent_positions = []
+    def update_positions(self):
+        # Actualiza la posición de los agentes
+        self.agent_positions = [
+            (agent.pos, agent.unique_id) for agent in self.schedule.agents
+        ]
 
-        # Iteración a través de los agentes
-        for agent in self.schedule.agents:
-            # Verifica si el agente es una instancia de la clase RobotAgent
-            if isinstance(agent, RobotAgent):
-                # Agrega la posición del agente a la lista
-                self.agent_positions.append(agent.pos)
+        self.food_positions = [
+            (agent.pos, agent.unique_id) for agent in self.schedule.agents if agent.type == 2
+        ]
+        
 
     def add_food(self):
         if self.food_counter < 47:
@@ -357,16 +353,23 @@ class FoodCollector(Model):
 
         if self.steps % 5 == 0 and self.steps >= 5:
             self.add_food()
+            print(f"Food count: {self.food_counter}")
+            print(f"Food positions: {self.food_positions}")
+            print(f"Deposit position: {self.known_deposit_pos}")
+            print(f"Number of collectors: {self.num_collectors}")
+            
                     
         self.schedule.step()
         self.datacollector.collect(self) 
+        self.update_positions()
         self.steps += 1
+        print(f"Agent positions: {self.agent_positions}")
 
 
 WIDTH = 20
 HEIGHT = 20
 NUM_AGENTS = 5
-
+MAX_FOOD = 47
 MAX_STEPS = 800
 
 model = FoodCollector(WIDTH, HEIGHT, NUM_AGENTS)
@@ -383,16 +386,22 @@ data = model.datacollector.get_model_vars_dataframe()
 all_grid = model.datacollector.get_model_vars_dataframe()
 print(all_grid)
 
+
+
+
+
+
 # Importación de las bibliotecas necesarias
 from flask import Flask, jsonify
 import json
 
-# Creación de una instancia de la aplicación Flask
+
+# Create a single instance of the Flask app
 app = Flask(__name__)
 
-# Creación de una instancia del modelo FoodCollector con parámetros WIDTH, HEIGHT y NUM_AGENTS
 model = FoodCollector(WIDTH, HEIGHT, NUM_AGENTS)
-current_step = 0  # Variable global para seguir el progreso de los pasos en la simulación
+current_step = 0
+
 
 # Definición de la ruta principal ("/") para la solicitud GET
 @app.route("/step", methods=["GET"])
@@ -400,7 +409,7 @@ def get_step_data():
     global current_step  # Se utiliza la variable global current_step
 
     # Verifica si hay más pasos disponibles dentro del límite MAX_STEPS
-    if current_step < MAX_STEPS:
+    if current_step < MAX_STEPS and not model.all_food_placed():
         # Ejecuta un paso en el modelo
         model.step()
 
@@ -414,31 +423,122 @@ def get_step_data():
         # Incrementa el contador de pasos
         current_step += 1
 
-        # Devuelve los datos en formato JSON
-        return jsonify(data)
+        # Devuelve los datos en formato JSON con un código de estado 200 (OK)
+        return jsonify(data), 200
     else:
-        # Devuelve un mensaje si no hay más pasos disponibles o la simulación ha sido completada
-        return jsonify({"message": "No more steps available or simulation completed"})
+        # Devuelve un mensaje con un código de estado 400 (Bad Request)
+        return jsonify({"message": "No more steps available or simulation completed"}), 400
 
 # Nueva ruta para imprimir solo los agentes
 @app.route("/agents", methods=["GET"])
 def get_agents():
-    model.crear_agentes()
-    return jsonify({"agents": model.agent_positions})
-
+    
+    return jsonify({"agents": model.agent_positions}), 200
 
 # Nueva ruta para imprimir solo la comida
 @app.route("/food", methods=["GET"])
 def get_food():
-    model.add_food()
-    return jsonify({"foods": model.known_food_positions})
+    return jsonify({"foods": model.known_food_positions}), 200
 
-#Nuevo ruta para imprimir solo el deposito
+# Nuevo ruta para imprimir solo el deposito
 @app.route("/deposit", methods=["GET"])
 def get_doposit():
-    return jsonify({"deposit": model.known_deposit_pos})
+    return jsonify({"deposit": model.known_deposit_pos}), 200
 
-# Verifica si este script es el punto de entrada principal
+
+# Inicia la aplicación Flask en modo de depuración
 if __name__ == "__main__":
-    # Inicia la aplicación Flask en modo de depuración
     app.run(debug=True)
+
+
+
+
+
+
+"""
+
+
+# ======================================================
+# Server Class
+# ======================================================
+class Server(BaseHTTPRequestHandler):
+    # ==============================================================
+    # Function: _set_response
+    # Description: Sets the response of the server.
+    # Parameters:  None
+    # Return: None
+    # ==============================================================
+    def _set_response(self):
+        self.send_response(200)
+        self.send_header('Content-type', 'application/json')
+        self.end_headers()
+        
+    # ==============================================================
+    # Function: do_GET
+    # Description: Handles the GET request.
+    # Parameters:  None
+    # Return: None
+    # ==============================================================
+    def do_GET(self):
+        self._set_response()
+        self.wfile.write("GET request for {}".format(self.path).encode('utf-8'))
+
+    # ==============================================================
+    # Function: do_POST
+    # Description: Handles the POST request and controls the 
+    #              simulation´s steps.
+    # Parameters:  None
+    # Return: None
+    # ==============================================================
+    def do_POST(self):
+        global current_steps
+
+        if current_steps < MAX_STEPS:
+            model.step()
+            grid = json.dumps(get_grid(model))
+            print(grid)
+            self._set_response()
+            self.wfile.write(str(grid).encode('utf-8'))
+            current_steps += 1
+        else:
+            self._set_response()
+            self.wfile.write("Simulation finished!".encode('utf-8'))
+
+
+
+# ======================================================
+# Function: run
+# Description: Runs the server.
+# Parameters:  server_class: The server class.
+#              handler_class: The handler class.
+#              port: The port where the server will run.
+# Return: None
+# ======================================================
+def run(server_class=HTTPServer, handler_class=Server, port=8585):
+    logging.basicConfig(level=logging.INFO)
+    server_address = ('', port)
+    httpd = server_class(server_address, handler_class)
+    logging.info("Starting httpd...\n") # HTTPD is HTTP Daemon!
+    try:
+        httpd.serve_forever()
+    except KeyboardInterrupt:   # CTRL+C stops the server
+        pass
+    httpd.server_close()
+    logging.info("Stopping httpd...\n")
+
+# ======================================================
+# Main
+# ======================================================
+
+data = {
+    "agents": model.agent_positions,
+    "food": model.known_food_positions,
+    "deposit_cell": model.known_deposit_pos,
+}
+width = 20
+height = 20
+
+model = FoodCollector(WIDTH, HEIGHT, NUM_AGENTS)
+
+run()
+"""
