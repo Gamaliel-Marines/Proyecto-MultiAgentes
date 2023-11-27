@@ -28,7 +28,7 @@ class Server(BaseHTTPRequestHandler):
         self.wfile.write(str(position).encode('utf-8'))
 
 
-def run(server_class=HTTPServer, handler_class=Server, port=8585):
+def run(server_class=HTTPServer, handler_class=Server, port=5000):
     logging.basicConfig(level=logging.INFO)
     server_address = ('', port)
     httpd = server_class(server_address, handler_class)
@@ -47,5 +47,3 @@ if __name__ == '__main__':
         run(port=int(argv[1]))
     else:
         run()
-
-
