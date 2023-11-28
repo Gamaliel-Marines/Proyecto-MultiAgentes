@@ -273,13 +273,13 @@ class FoodCollector(Model):
         self.width = width
         self.height = height
         self.num_agents = num_agents
+        self.deposit_pos = None
         self.food_id = 7
         self.steps = 0
-        self.food_counter = 0    # Contador de comida en el campo
+        self.food_counter = 0
         self.known_food_positions = []
         self.known_deposit_pos = None
         self.num_collectors = 0
-        #agregar datos para la coneccion con unity
         self.agent_positions = []
         self.food_positions = []
 
@@ -293,6 +293,7 @@ class FoodCollector(Model):
         self.schedule.add(deposit)
         pos = self.random_empty_cell()
         self.grid.place_agent(deposit, pos)
+        self.deposit_pos = pos
 
         # Colocar los robots
         for _ in range(self.num_agents):
@@ -319,7 +320,7 @@ class FoodCollector(Model):
         #     (agent.pos, agent.unique_id) for agent in self.schedule.agents if agent.type == 2
         # ]
 
-        self.food_positions = [{"position": agent.pos, "unique_id": agent.unique_id}
+        self.food_positions = [{"position": agent.pos, "deposited": agent.deposited}
                            for agent in self.schedule.agents if isinstance(agent, FoodAgent)]
 
     def add_food(self):
@@ -365,7 +366,7 @@ class FoodCollector(Model):
             self.add_food()
             print(f"Food count: {self.food_counter}")
             print(f"Food positions: {self.food_positions}")
-            print(f"Deposit position: {self.known_deposit_pos}")
+            print(f"Deposit position: {self.deposit_pos}")
             print(f"Number of collectors: {self.num_collectors}")
             print(f"Agent positions: {self.agent_positions}")
 
@@ -422,7 +423,7 @@ def get_step_data():
         data = {
             "agents": model.agent_positions,
             "food": model.food_positions,
-            "deposit_cell": model.known_deposit_pos,
+            "deposit_cell": model.deposit_pos,
         }
 
         # Incrementa el contador de pasos
@@ -448,16 +449,14 @@ def get_food():
 # Nuevo ruta para imprimir solo el deposito
 @app.route("/deposit", methods=["GET"])
 def get_doposit():
-    return jsonify({"deposit": model.known_deposit_pos}), 200
+    return jsonify({"deposit": model.deposit_pos}), 200
 
 
 # Inicia la aplicación Flask en modo de depuración
 if __name__ == "__main__":
     app.run(debug=True)
 
-
 """
-
 
 # ======================================================
 # Server Class
