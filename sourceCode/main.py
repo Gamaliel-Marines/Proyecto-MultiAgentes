@@ -154,6 +154,9 @@ class RobotAgent(Agent):
         self.move_towards(self.deposit_pos)
         if self.pos == self.deposit_pos:
             self.dropfood()
+    #nueva funcion agregada para actualizar la matriz de comida
+    def pick_food(self,x,y):
+        self.model.food_matrix[x][y] -= 1
 
     def pickup_food(self):
         cell_contents = self.model.grid.get_cell_list_contents(self.pos)
@@ -302,24 +305,31 @@ class FoodCollector(Model):
             pos = self.random_empty_cell()
             self.grid.place_agent(robot, pos)
             agent_id += 1
+    
+    def pick_food(self,x,y):
+        self.food_matrix[x][y] -= 1
 
     def update_positions(self):
-        self.agent_positions = [{
-            "position": agent.pos,
-            "id": agent.unique_id,
-            "type": agent.type,
-            "role": agent.role,
-            "carrying_food": agent.carrying_food,
-        }
+        self.agent_positions = [
+            {
+                "position": agent.pos,
+                "id": agent.unique_id,
+                "type": agent.type,
+                "role": agent.role,
+                "carrying_food": agent.carrying_food,
+            }
             for agent in self.schedule.agents if agent.type == 3
         ]
 
         self.food_positions = [
-            (agent.pos, agent.unique_id) for agent in self.schedule.agents if agent.type == 2
+            (x, y)
+            for x in range(20)
+            for y in range(20)
+            if self.food_matrix[x][y] > 0
         ]
 
-        
 
+                
     def add_food(self):
         if self.food_counter < 47:
             num_new_food = random.randint(2, 5)
@@ -332,6 +342,9 @@ class FoodCollector(Model):
                     self.grid.place_agent(food, pos)
                     self.food_counter += 1
                     self.food_id += 1
+                    x, y = pos
+                    self.food_matrix[x][y] += 1
+
 
     def random_empty_cell(self):
         empty_cells = [(x, y) for x in range(self.width) for y in range(self.height) if self.grid.is_cell_empty((x, y))]
@@ -361,6 +374,8 @@ class FoodCollector(Model):
         self.datacollector.collect(self) 
         self.update_positions()
         print(self.agent_positions)
+        print("la posicion de la comida es: " + str(self.food_positions))
+
         self.steps += 1
 
 
