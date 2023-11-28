@@ -154,9 +154,6 @@ class RobotAgent(Agent):
         self.move_towards(self.deposit_pos)
         if self.pos == self.deposit_pos:
             self.dropfood()
-    #nueva funcion agregada para actualizar la matriz de comida
-    def pick_food(self,x,y):
-        self.model.food_matrix[x][y] -= 1
 
     def pickup_food(self):
         cell_contents = self.model.grid.get_cell_list_contents(self.pos)
@@ -176,6 +173,8 @@ class RobotAgent(Agent):
             food = next((obj for obj in cell_contents if isinstance(obj, FoodAgent)), None)
             if food:
                 self.model.grid.remove_agent(food)
+                self.model.food_matrix[self.pos[0]][self.pos[1]] -= 1
+
 
     def dropfood(self):
         self.carrying_food = False
@@ -367,7 +366,7 @@ class FoodCollector(Model):
         if self.all_food_placed():
             return
 
-        if self.steps % 5 == 0 and self.steps >= 5:
+        if self.steps % 5 == 0 and self.steps > 0:
             self.add_food()
                     
         self.schedule.step()
@@ -422,7 +421,7 @@ def get_step_data():
         data = {
             "current_step": current_step,
             "agents": model.agent_positions,
-            "food": model.known_food_positions,
+            "food": model.food_positions,
             "deposit_cell": model.known_deposit_pos,
         }
         current_step += 1
