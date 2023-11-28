@@ -36,7 +36,7 @@ class DepositAgent(Agent):
         super().__init__(id, model)
         self.type = 1
         self.visible = False
-        self.collected_food_count = 0 
+        self.collected_food_count = 0
 
     def add_food(self):
         self.collected_food_count += 1
@@ -50,6 +50,7 @@ class FoodAgent(Agent):
         super().__init__(id, model)
         self.type = 2
         self.deposited = False
+        self.position = None
 
 #=============================================
 # Carrier Agent
@@ -137,7 +138,7 @@ class RobotAgent(Agent):
 
     def distance_to(self, target_pos):
         return abs(self.pos[0] - target_pos[0]) + abs(self.pos[1] - target_pos[1])
-    
+
     def move2warehouse(self):
         # print(f"agent {self.unique_id} is moving to warehouse")
         # print(f"Deposit Pos {self.deposit_pos}")
@@ -151,10 +152,10 @@ class RobotAgent(Agent):
         food = next((obj for obj in cell_contents if isinstance(obj, FoodAgent) and not obj.deposited), None)
         if food:
             self.carrying_food = True
-            food.deposited = True  
-            self.remove_food_from_cell()  
+            food.deposited = True
+            self.remove_food_from_cell()
             if self.pos in self.food_positions:
-                self.food_positions.remove(self.pos)  
+                self.food_positions.remove(self.pos)
 
             print(f"agent {self.unique_id} picked up food at {self.pos}")
             self.move2warehouse()
@@ -179,9 +180,9 @@ class RobotAgent(Agent):
             for content in current_cell_contents:
 
                 if self.model.known_deposit_pos is not None:
-                    self.change_role_to_collector() 
+                    self.change_role_to_collector()
 
-                else: 
+                else:
                     if isinstance(content, DepositAgent) and self.model.known_deposit_pos is None:
                         self.communicate_deposit_position(self.pos)
 
@@ -195,11 +196,11 @@ class RobotAgent(Agent):
             for content in current_cell_contents:
                 if isinstance(content, FoodAgent) and self.pos not in self.model.known_food_positions:
                     self.communicate_food_position(self.pos)
-                    
-                if self.model.known_deposit_pos is not None:
-                    self.change_role_to_collector() 
 
-                else: 
+                if self.model.known_deposit_pos is not None:
+                    self.change_role_to_collector()
+
+                else:
                     if isinstance(content, DepositAgent) and self.model.known_deposit_pos is None:
                         self.communicate_deposit_position(self.pos)
 
@@ -211,7 +212,7 @@ class RobotAgent(Agent):
                         self.pickup_food()
                     else:
                         self.move2food()
-                else: 
+                else:
                     self.moveRandom()
             elif self.carrying_food:
                 if self.pos == self.deposit_pos:
@@ -238,7 +239,7 @@ def get_grid(model):
         cell_value = 0
         for agent in content:
             if isinstance(agent, DepositAgent):
-                cell_value = 4 
+                cell_value = 4
             elif isinstance(agent, FoodAgent):
                 cell_value = 2
             elif isinstance(agent, RobotAgent):
@@ -314,10 +315,12 @@ class FoodCollector(Model):
             for agent in self.schedule.agents if agent.type == 3
         ]
 
-        self.food_positions = [
-            (agent.pos, agent.unique_id) for agent in self.schedule.agents if agent.type == 2
-        ]
-        
+        # self.food_positions = [
+        #     (agent.pos, agent.unique_id) for agent in self.schedule.agents if agent.type == 2
+        # ]
+
+        self.food_positions = [{"position": agent.pos, "unique_id": agent.unique_id}
+                           for agent in self.schedule.agents if isinstance(agent, FoodAgent)]
 
     def add_food(self):
         if self.food_counter < 47:
@@ -341,7 +344,7 @@ class FoodCollector(Model):
         if not empty_cells:
             raise Exception("No empty cells available.")
         return random.choice(empty_cells)
-    
+
     def broadcast_food_positions(self):
         for agent in self.schedule.agents:
             if isinstance(agent, RobotAgent):
@@ -365,9 +368,9 @@ class FoodCollector(Model):
             print(f"Deposit position: {self.known_deposit_pos}")
             print(f"Number of collectors: {self.num_collectors}")
             print(f"Agent positions: {self.agent_positions}")
-                    
+
         self.schedule.step()
-        self.datacollector.collect(self) 
+        self.datacollector.collect(self)
         self.update_positions()
         self.steps += 1
 
@@ -406,7 +409,7 @@ current_step = 0
 
 
 # Definición de la ruta principal ("/") para la solicitud GET
-@app.route("/step", methods=["GET"])
+@app.route("/step", methods=["GET", "POST"])
 def get_step_data():
     global current_step  # Se utiliza la variable global current_step
 
@@ -418,7 +421,7 @@ def get_step_data():
         # Construcción de un diccionario con los datos relevantes del modelo
         data = {
             "agents": model.agent_positions,
-            "food": model.known_food_positions,
+            "food": model.food_positions,
             "deposit_cell": model.known_deposit_pos,
         }
 
@@ -434,7 +437,7 @@ def get_step_data():
 # Nueva ruta para imprimir solo los agentes
 @app.route("/agents", methods=["GET"])
 def get_agents():
-    
+
     return jsonify({"agents": model.agent_positions}), 200
 
 # Nueva ruta para imprimir solo la comida
@@ -451,10 +454,6 @@ def get_doposit():
 # Inicia la aplicación Flask en modo de depuración
 if __name__ == "__main__":
     app.run(debug=True)
-
-
-
-
 
 
 """
@@ -474,7 +473,7 @@ class Server(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header('Content-type', 'application/json')
         self.end_headers()
-        
+
     # ==============================================================
     # Function: do_GET
     # Description: Handles the GET request.
@@ -487,7 +486,7 @@ class Server(BaseHTTPRequestHandler):
 
     # ==============================================================
     # Function: do_POST
-    # Description: Handles the POST request and controls the 
+    # Description: Handles the POST request and controls the
     #              simulation´s steps.
     # Parameters:  None
     # Return: None
