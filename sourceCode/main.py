@@ -359,6 +359,7 @@ class FoodCollector(Model):
         self.schedule.step()
         self.datacollector.collect(self) 
         self.update_positions()
+        print(self.agent_positions)
         self.steps += 1
 
 
@@ -385,11 +386,9 @@ all_grid = model.datacollector.get_model_vars_dataframe()
 # Server
 ###############################################
 
-
 # Importación de las bibliotecas necesarias
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 import json
-
 
 # Create a single instance of the Flask app
 app = Flask(__name__)
@@ -398,51 +397,23 @@ model = FoodCollector(WIDTH, HEIGHT, NUM_AGENTS)
 current_step = 0
 
 
-# Definición de la ruta principal ("/") para la solicitud GET
+
 @app.route("/step", methods=["GET"])
 def get_step_data():
-    global current_step  # Se utiliza la variable global current_step
-
-    # Verifica si hay más pasos disponibles dentro del límite MAX_STEPS
+    global current_step 
     if current_step < MAX_STEPS and not model.all_food_placed():
-        # Ejecuta un paso en el modelo
         model.step()
-
-        # Construcción de un diccionario con los datos relevantes del modelo
         data = {
-            "current step": current_step,
+            "current_step": current_step,
             "agents": model.agent_positions,
             "food": model.known_food_positions,
             "deposit_cell": model.known_deposit_pos,
-            
         }
-
-        # Incrementa el contador de pasos
         current_step += 1
-
-        # Devuelve los datos en formato JSON con un código de estado 200 (OK)
-        return jsonify(data), 200
+        return jsonify(data)
     else:
-        # Devuelve un mensaje con un código de estado 400 (Bad Request)
-        return jsonify({"message": "No more steps available or simulation completed"}), 400
-
-# Nueva ruta para imprimir solo los agentes
-@app.route("/agents", methods=["GET"])
-def get_agents():
+        return jsonify({"message": "Something sketchy is happening"})
     
-    return jsonify({"agents": model.agent_positions}), 200
-
-# Nueva ruta para imprimir solo la comida
-@app.route("/food", methods=["GET"])
-def get_food():
-    return jsonify({"foods": model.known_food_positions}), 200
-
-# Nuevo ruta para imprimir solo el deposito
-@app.route("/deposit", methods=["GET"])
-def get_doposit():
-    return jsonify({"deposit": model.known_deposit_pos}), 200
-
-
-# Inicia la aplicación Flask en modo de depuración
+    
 if __name__ == "__main__":
     app.run(debug=True)
