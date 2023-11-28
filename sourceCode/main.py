@@ -282,6 +282,7 @@ class FoodCollector(Model):
         self.num_collectors = 0
         self.agent_positions = []
         self.food_positions = []
+        self.food_matrix = np.zeros((20, 20))
 
         self.crear_agentes()
 
@@ -414,6 +415,6 @@ def get_step_data():
     else:
         return jsonify({"message": "Something sketchy is happening"})
     
-    
+
 if __name__ == "__main__":
     app.run(debug=True)
