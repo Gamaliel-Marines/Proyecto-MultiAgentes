@@ -1,3 +1,15 @@
+
+# ======================================================
+# Project: Food Collector
+# Authors: Gamaliel Marines Olvera A01708746
+#          Juan Pablo Cabrera Quiroga
+#          Sebastian Flores
+# Description: This script contains the implementation
+#              of the Food Collector simulation and
+#              the server that allows the communication
+#              between the simulation and the Unity
+#              application.
+# ======================================================
 # ======================================================
 # Imports
 # ======================================================
@@ -10,7 +22,7 @@ from mesa.datacollection import DataCollector
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
-# from matplotlib.colors import ListedColormap
+from matplotlib.colors import ListedColormap
 
 plt.rcParams["animation.html"] = "jshtml"
 matplotlib.rcParams['animation.embed_limit'] = 2**128
@@ -25,7 +37,6 @@ import json
 
 import pandas as pd
 import math
-import argparse
 
 #=============================================
 # Deposit Agent
@@ -40,7 +51,6 @@ class DepositAgent(Agent):
 
     def add_food(self):
         self.collected_food_count += 1
-
 #=============================================
 # Food Agent
 #=============================================
@@ -50,10 +60,8 @@ class FoodAgent(Agent):
         super().__init__(id, model)
         self.type = 2
         self.deposited = False
-        self.position = None
-
 #=============================================
-# Carrier Agent
+# Robot Agent
 #=============================================
 class RobotAgent(Agent):
     def __init__(self, unique_id, model):
@@ -106,13 +114,11 @@ class RobotAgent(Agent):
         if self.model.num_collectors < 2 and self.role == "explorer" and self.model.known_deposit_pos is not None:
             self.role = "collector"
             self.model.num_collectors += 1
-            print(f"{self.unique_id} became a collector")
 
     def move2food(self):
         if not self.carrying_food and self.food_positions:
             food_target = min(self.food_positions, key=lambda pos: self.distance_to(pos))
             self.move_towards(food_target)
-            print(f"agent {self.unique_id} moved to food {food_target}")
             self.pickup_food()
         else:
             self.moveRandom()
@@ -140,10 +146,7 @@ class RobotAgent(Agent):
         return abs(self.pos[0] - target_pos[0]) + abs(self.pos[1] - target_pos[1])
 
     def move2warehouse(self):
-        # print(f"agent {self.unique_id} is moving to warehouse")
-        # print(f"Deposit Pos {self.deposit_pos}")
         self.move_towards(self.deposit_pos)
-        # print(f"Agent pos {self.pos}")
         if self.pos == self.deposit_pos:
             self.dropfood()
 
@@ -151,13 +154,12 @@ class RobotAgent(Agent):
         cell_contents = self.model.grid.get_cell_list_contents(self.pos)
         food = next((obj for obj in cell_contents if isinstance(obj, FoodAgent) and not obj.deposited), None)
         if food:
-            self.carrying_food = True
             food.deposited = True
+            self.carrying_food = True
             self.remove_food_from_cell()
             if self.pos in self.food_positions:
                 self.food_positions.remove(self.pos)
 
-            print(f"agent {self.unique_id} picked up food at {self.pos}")
             self.move2warehouse()
 
     def remove_food_from_cell(self):
@@ -166,10 +168,8 @@ class RobotAgent(Agent):
             food = next((obj for obj in cell_contents if isinstance(obj, FoodAgent)), None)
             if food:
                 self.model.grid.remove_agent(food)
-                print(f"Food removed from {self.pos} by agent {self.unique_id}")
 
     def dropfood(self):
-        print(f"{self.unique_id} dropped food")
         self.carrying_food = False
         deposit = next(obj for obj in self.model.grid.get_cell_list_contents(self.pos) if isinstance(obj, DepositAgent))
         deposit.add_food()
@@ -222,17 +222,6 @@ class RobotAgent(Agent):
 
         self.deposit_pos = self.model.known_deposit_pos
         self.food_positions = self.model.known_food_positions
-        #obtener la posicion del agente
-        x,y = self.pos
-        # verufucar la pos del agente
-        print(f"Agent {self.unique_id} is at {x},{y}")
-
-        # print(f"{self.unique_id} {self.carrying_food}")
-
-        # print(f"Deposit position: {self.deposit_pos}")
-        print(f"Food length Robot Agent {self.food_positions}")
-
-
 def get_grid(model):
     grid = np.zeros((model.grid.width, model.grid.height))
     for content, (x, y) in model.grid.coord_iter():
@@ -251,9 +240,6 @@ def get_grid(model):
 
         grid[x][y] = cell_value
     return grid
-
-
-
 # Food Collector Model Class
 # ======================================================
 class FoodCollector(Model):
@@ -273,15 +259,14 @@ class FoodCollector(Model):
         self.width = width
         self.height = height
         self.num_agents = num_agents
-        self.deposit_pos = None
+        self.agent_positions = []
         self.food_id = 7
         self.steps = 0
         self.food_counter = 0
         self.known_food_positions = []
         self.known_deposit_pos = None
+        self.deposit_pos = None
         self.num_collectors = 0
-        self.agent_positions = []
-        self.food_positions = []
 
         self.crear_agentes()
 
@@ -302,32 +287,10 @@ class FoodCollector(Model):
             pos = self.random_empty_cell()
             self.grid.place_agent(robot, pos)
             agent_id += 1
-            # print(f"Adding {agent_id} at step {self.steps}.")
-
-    def update_positions(self):
-        # Actualiza la posición de los agentes
-        self.agent_positions = [{
-            "position": agent.pos,
-            "unique_id": agent.unique_id,
-            "type": agent.type,
-            "role": agent.role,
-            "carrying_food": agent.carrying_food,
-        }
-            for agent in self.schedule.agents if agent.type == 3
-        ]
-
-        # self.food_positions = [
-        #     (agent.pos, agent.unique_id) for agent in self.schedule.agents if agent.type == 2
-        # ]
-
-        self.food_positions = [{"position": agent.pos, "deposited": agent.deposited}
-                           for agent in self.schedule.agents if isinstance(agent, FoodAgent)]
 
     def add_food(self):
         if self.food_counter < 47:
             num_new_food = random.randint(2, 5)
-
-            # print(f"Adding {num_new_food} new food items at step {self.steps}.")
 
             for _ in range(num_new_food):
                 if self.food_counter < 47:
@@ -337,8 +300,6 @@ class FoodCollector(Model):
                     self.grid.place_agent(food, pos)
                     self.food_counter += 1
                     self.food_id += 1
-
-            # print(f"Total food items: {self.food_counter} at {pos}")
 
     def random_empty_cell(self):
         empty_cells = [(x, y) for x in range(self.width) for y in range(self.height) if self.grid.is_cell_empty((x, y))]
@@ -357,29 +318,35 @@ class FoodCollector(Model):
                 return True
         return False
 
+    def update_positions(self):
+        self.agent_positions = [{
+            "position": agent.pos,
+            "unique_id": agent.unique_id,
+            "type": agent.type,
+            "role": agent.role,
+            "carrying_food": agent.carrying_food,
+        }
+            for agent in self.schedule.agents if agent.type == 3
+        ]
+        self.food_positions = [{"position": agent.pos, "deposited": agent.deposited}
+                           for agent in self.schedule.agents if isinstance(agent, FoodAgent)]
+
     def step(self):
         if self.all_food_placed():
-            print(f"Objetivo alcanzado: 47 comidas recolectadas.")
             return
 
         if self.steps % 5 == 0 and self.steps >= 5:
             self.add_food()
-            print(f"Food count: {self.food_counter}")
-            print(f"Food positions: {self.food_positions}")
-            print(f"Deposit position: {self.deposit_pos}")
-            print(f"Number of collectors: {self.num_collectors}")
-            print(f"Agent positions: {self.agent_positions}")
 
         self.schedule.step()
         self.datacollector.collect(self)
         self.update_positions()
         self.steps += 1
 
-
 WIDTH = 20
 HEIGHT = 20
 NUM_AGENTS = 5
-MAX_FOOD = 47
+
 MAX_STEPS = 800
 
 model = FoodCollector(WIDTH, HEIGHT, NUM_AGENTS)
@@ -392,10 +359,7 @@ for i in range(MAX_STEPS + 1):
 
 
 data = model.datacollector.get_model_vars_dataframe()
-
 all_grid = model.datacollector.get_model_vars_dataframe()
-print(all_grid)
-
 
 # Importación de las bibliotecas necesarias
 from flask import Flask, jsonify
@@ -444,7 +408,7 @@ def get_agents():
 # Nueva ruta para imprimir solo la comida
 @app.route("/food", methods=["GET"])
 def get_food():
-    return jsonify({"foods": model.known_food_positions}), 200
+    return jsonify({"foods": Agent.known_food_positions}), 200
 
 # Nuevo ruta para imprimir solo el deposito
 @app.route("/deposit", methods=["GET"])
